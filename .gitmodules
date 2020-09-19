@@ -1,0 +1,3 @@
+[submodule "hsGeneticAlgorithm"]
+	path = hsGeneticAlgorithm
+	url = https://github.com/hyunsoo36/hsGeneticAlgorithm.git

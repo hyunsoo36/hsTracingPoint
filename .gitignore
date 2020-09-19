@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+# Custom by hs
+build/
+data/
