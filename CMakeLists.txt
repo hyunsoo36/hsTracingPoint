@@ -4,11 +4,13 @@ project(TracingPoint)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
+
+set(CURL_LIBRARY "-lcurl") 
 find_package(CURL REQUIRED)
 
 include_directories (
+    ${CURL_INCLUDE_DIR}
     hsGeneticAlgorithm
-    curl-7.72.0/include
     )
 
 set(SOURCE 
@@ -18,3 +20,5 @@ set(SOURCE
     )
 
 add_executable(${PROJECT_NAME} ${SOURCE})
+
+target_link_libraries(${PROJECT_NAME} ${CURL_LIBRARIES})
