@@ -1,97 +1,68 @@
-#include <stdio.h>
+#include <cstdint>
+#include <iostream>
+#include <memory>
+#include <string>
+
 #include <curl/curl.h>
-
-https://gist.github.com/connormanning/41efa6075515019e499c
-
-int main(void)
+namespace
 {
-	const char* url = "www.nadfdfdfdfer.com";
+    std::size_t callback(
+            const char* in,
+            std::size_t size,
+            std::size_t num,
+            std::string* out)
+    {
+        const std::size_t totalBytes(size * num);
+        out->append(in, totalBytes);
+        return totalBytes;
+    }
+}
 
-	// lubcURL 초기화 
-	curl_global_init( CURL_GLOBAL_ALL ) ;
+int main()
+{
+    const std::string url("http://date.jsontest.com/");
 
-	// context객체의 생성
-	CURL* ctx = curl_easy_init() ;
+    CURL* curl = curl_easy_init();
 
-	if( NULL == ctx ){
-		printf("Unable to initialize cURL interface\n");
-		return -1;
-	}
+    // Set remote URL.
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
-	// context 객체를 설정한다.	
-	// 긁어올 url을 명시하고, url이 URL정보임을 알려준다.
-	curl_easy_setopt( ctx , CURLOPT_URL,  url ) ;
+    // Don't bother trying IPv6, which would increase DNS resolution time.
+    curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
 
-	// no progress bar:
-	curl_easy_setopt( ctx , CURLOPT_NOPROGRESS , 1 ) ;
+    // Don't wait forever, time out after 10 seconds.
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10);
 
-	/*
-	By default, headers are stripped from the output.
-	They can be:
+    // Follow HTTP redirects if necessary.
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 
-	- passed through a separate FILE* (CURLOPT_WRITEHEADER)
+    // Response information.
+    long httpCode(0);
+    std::unique_ptr<std::string> httpData(new std::string());
 
-	- included in the body's output (CURLOPT_HEADER -> nonzero value)
-		(here, the headers will be passed to whatever function
-		 processes the body, along w/ the body)
+    // Hook up data handling function.
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, callback);
 
-	- handled with separate callbacks (CURLOPT_HEADERFUNCTION)
-		(in this case, set CURLOPT_WRITEHEADER to a
-		 matching struct for the function)
+    // Hook up data container (will be passed as the last parameter to the
+    // callback handling function).  Can be any pointer type, since it will
+    // internally be passed as a void pointer.
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, httpData.get());
 
-	*/
+    // Run our HTTP GET command, capture the HTTP response code, and clean up.
+    curl_easy_perform(curl);
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+    curl_easy_cleanup(curl);
 	
-	// 헤더는 표준에러로 출력하도록 하다. 
-	curl_easy_setopt( ctx , CURLOPT_WRITEHEADER , stderr ) ;
+    if (httpCode == 200)
+    {
+        std::cout << "\nGot successful response from " << url << std::endl;
+		std::cout << *httpData.get() << std::endl;
+    }
+    else
+    {
+        std::cout << "Couldn't GET from " << url << " - exiting" << std::endl;
+        return 1;
+    }
 
-
-	// body 데이터는 표준출력 하도록 한다.
-	curl_easy_setopt( ctx , CURLOPT_WRITEDATA , stdout ) ;
-
-	// context 객체의 설정 종료 
-
-
-	// 웹페이지를 긁어온다. 
-
-	const CURLcode rc = curl_easy_perform( ctx ) ;
-
-	if( CURLE_OK != rc )
-	{
-		printf("Error from cURL: %s\n", curl_easy_strerror( rc ));
-	}
-	else
-	{
-
-		// get some info about the xfer:
-		double statDouble ;
-		long statLong ;
-		char* statString = NULL ;
-
-		// HTTP 응답코드를 얻어온다. 
-		if( CURLE_OK == curl_easy_getinfo( ctx , CURLINFO_HTTP_CODE , &statLong ) ){
-			printf("Response code:  %ld\n", statLong);
-		}
-
-		// Content-Type 를 얻어온다.
-		if( CURLE_OK == curl_easy_getinfo( ctx , CURLINFO_CONTENT_TYPE , &statString ) ){
-			printf("Content type: %s\n", statString);
-		}
-
-		// 다운로드한 문서의 크기를 얻어온다.
-		if( CURLE_OK == curl_easy_getinfo( ctx , CURLINFO_SIZE_DOWNLOAD , &statDouble ) ){
-			printf("Download size: %lf bytes\n", statDouble);
-		}
-
-		// 
-		if( CURLE_OK == curl_easy_getinfo( ctx , CURLINFO_SPEED_DOWNLOAD , &statDouble ) ){
-			printf("Download speed: %lf bytes/sec\n", statDouble);
-		}
-
-	}
-
-	// cleanup
-	curl_easy_cleanup( ctx ) ;
-	curl_global_cleanup() ;
-
-	return( 0 ) ;
+    return 0;
 }
